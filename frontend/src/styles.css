@@ -1,0 +1,301 @@
+:root {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: #1a1a1a;
+  background: #f4f6f8;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.layout {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+header h1 {
+  margin: 0 0 0.25rem;
+}
+
+.subtitle {
+  margin: 0 0 1.5rem;
+  color: #555;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #dde3ea;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+textarea,
+input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #c5ced8;
+  border-radius: 6px;
+  font: inherit;
+  margin-bottom: 0.75rem;
+}
+
+button {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0.35rem 0 0;
+}
+
+.loading {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin: 1rem 0;
+}
+
+.section-heading {
+  margin: 1.25rem 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.answer-body {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  white-space: pre-wrap;
+}
+
+.mode-line {
+  margin: 0.65rem 0 0;
+}
+
+.mode-badge {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+.sources-intro {
+  margin-top: 0.25rem;
+}
+
+.sources-help {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+}
+
+.source-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.source-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  background: #fafbfc;
+}
+
+.source-card-header {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+}
+
+.source-rank {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 8px;
+}
+
+.source-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.source-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.source-submeta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.source-divider {
+  color: #cbd5e1;
+}
+
+.source-id {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.relevance-pill {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.relevance-high {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.relevance-mid {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.relevance-low {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.source-excerpt-block {
+  margin-top: 0.85rem;
+}
+
+.source-excerpt-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.35rem;
+}
+
+.source-excerpt {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-left: 4px solid #2563eb;
+  background: #fff;
+  border-radius: 0 6px 6px 0;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: #eff6ff;
+}
+
+.empty-sources-callout {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin-top: 0.5rem;
+}
+
+.empty-sources-title {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.doc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.doc-list li {
+  border-top: 1px solid #edf0f4;
+  padding: 0.75rem 0;
+}
+
+.doc-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.muted {
+  color: #666;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.pager button {
+  background: #475569;
+}
+
+.documents-panel {
+  margin-top: 0.5rem;
+}

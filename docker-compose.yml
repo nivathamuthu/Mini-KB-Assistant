@@ -1,0 +1,46 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: kb
+      POSTGRES_PASSWORD: kb
+      POSTGRES_DB: kb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kb -d kb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "${API_HOST_PORT:-8001}:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://kb:kb@db:5432/kb
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:${API_HOST_PORT:-8001}
+    ports:
+      - "${UI_HOST_PORT:-5173}:80"
+    depends_on:
+      - backend
+    restart: on-failure
+
+volumes:
+  pgdata:
