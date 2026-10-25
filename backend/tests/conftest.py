@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 os.environ.setdefault("PROVIDER", "mock")
 os.environ.setdefault("EMBEDDING_DIM", "384")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://kb:kb@localhost:5432/kb")
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://kb:kb@localhost:5433/kb")
 
 from app.config import get_settings
 from app.db import get_db, init_db, close_db

@@ -7,8 +7,9 @@
 ## Where AI influenced the design
 
 - Repository layout and phase ordering followed the provided README build plan.
-- Provider abstraction (mock + OpenAI), standard error JSON shape, and in-memory sliding-window rate limiter match the README’s suggested patterns.
+- Provider abstraction (mock, OpenAI, Google Gemini), optional local BGE embeddings (`EMBED_MODEL`), standard error JSON shape, and in-memory sliding-window rate limiter match the README’s suggested patterns.
 - Mock embeddings use a simple bag-of-words hashing scheme so local demos retrieve overlapping terms without calling external APIs.
+- Docker image installs CPU PyTorch + sentence-transformers and pre-downloads BGE-small for embedding/search when `EMBED_MODEL` is set.
 
 ## Reviewed / changed suggestion
 

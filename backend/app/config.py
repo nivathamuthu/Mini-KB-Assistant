@@ -29,7 +29,7 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
-    database_url: str = "postgresql+asyncpg://kb:kb@localhost:5432/kb"
+    database_url: str = "postgresql+asyncpg://kb:kb@localhost:5433/kb"
 
     # Legacy single switch (mock | openai | gemini)
     provider: str = "mock"
