@@ -3,6 +3,23 @@ from functools import lru_cache
 from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Google retires older model IDs; map to current equivalents (see Gemini API errors).
+_GEMINI_MODEL_ALIASES: dict[str, str] = {
+    "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
+    "gemini-2.0-flash-lite": "gemini-3.5-flash-lite",
+    "gemini-2.0-flash": "gemini-3.8-flash",
+    "gemini-2.5-flash": "gemini-3.8-flash",
+}
+
+
+def resolve_gemini_model(name: str) -> str:
+    cleaned = name.strip()
+    if not cleaned:
+        return cleaned
+    bare = cleaned.removeprefix("models/")
+    mapped = _GEMINI_MODEL_ALIASES.get(bare, bare)
+    return mapped if mapped == bare else mapped
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -28,7 +45,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("GEMINI_API_KEY", "GOOGLE_API_KEY"),
     )
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-3.5-flash-lite"
     gemini_embedding_model: str = "text-embedding-004"
 
     embedding_model: str = "text-embedding-3-small"
@@ -56,7 +73,8 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def normalize_provider_fields(self) -> "Settings":
         if self.llm_model is not None:
-            self.llm_model = self.llm_model.strip()
+            self.llm_model = resolve_gemini_model(self.llm_model)
+        self.gemini_model = resolve_gemini_model(self.gemini_model)
         return self
 
     @property
@@ -87,8 +105,8 @@ class Settings(BaseSettings):
     def chat_model(self) -> str:
         if self.llm_provider_name == "gemini":
             if self.llm_model:
-                return self.llm_model
-            return self.gemini_model
+                return resolve_gemini_model(self.llm_model)
+            return resolve_gemini_model(self.gemini_model)
         if self.llm_provider_name == "openai":
             if self.llm_model:
                 return self.llm_model

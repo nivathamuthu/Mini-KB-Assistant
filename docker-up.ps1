@@ -15,7 +15,7 @@ if ($LASTEXITCODE -ne 0) {
 if (-not $env:API_HOST_PORT) { $env:API_HOST_PORT = "8001" }
 if (-not $env:UI_HOST_PORT) { $env:UI_HOST_PORT = "5173" }
 
-Write-Host "Building and starting services (db, backend, frontend)..." -ForegroundColor Cyan
+Write-Host "Building and starting services (db, pgadmin, backend, frontend)..." -ForegroundColor Cyan
 Write-Host "  API host port: $($env:API_HOST_PORT)  UI host port: $($env:UI_HOST_PORT)"
 docker compose up -d --build
 
@@ -32,6 +32,8 @@ Write-Host "  UI:      http://localhost:$uiPort"
 Write-Host "  API:     http://localhost:$apiPort"
 Write-Host "  Swagger: http://localhost:$apiPort/docs"
 Write-Host "  Health:  http://localhost:$apiPort/health"
+$pgPort = if ($env:PGADMIN_HOST_PORT) { $env:PGADMIN_HOST_PORT } else { "5050" }
+Write-Host "  pgAdmin: http://localhost:$pgPort  (login admin@local.dev / admin)"
 Write-Host ""
 Write-Host "Logs:  docker compose logs -f"
 Write-Host "Stop:  docker compose down"

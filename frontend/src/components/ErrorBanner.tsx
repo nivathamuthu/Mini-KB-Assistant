@@ -27,7 +27,11 @@ export default function ErrorBanner({ error }: Props) {
     if (error.status === 429 && countdown !== null) {
       message = `${error.message} (${countdown}s remaining)`;
     } else if (error.status >= 500) {
-      message = "The service is temporarily unavailable. Please try again shortly.";
+      const detail = error.message?.trim();
+      message =
+        detail && detail.length < 220
+          ? detail
+          : "The service is temporarily unavailable. Please try again shortly.";
     }
   } else {
     message =

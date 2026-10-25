@@ -187,7 +187,18 @@ async def _backoff_sleep(attempt: int) -> None:
 
 def build_embedding_provider(settings: Settings) -> EmbeddingProvider:
     if settings.uses_local_embeddings:
-        return LocalEmbeddingProvider(settings)
+        try:
+            return LocalEmbeddingProvider(settings)
+        except ServiceUnavailableError:
+            if settings.llm_provider_name == "gemini" and settings.gemini_api_key:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "EMBED_MODEL configured but local runtime unavailable; "
+                    "falling back to Gemini API embeddings (use EMBEDDING_DIM=768)."
+                )
+                return GeminiEmbeddingProvider(settings)
+            raise
 
     name = settings.provider_name
     if name == "mock":

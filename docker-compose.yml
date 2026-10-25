@@ -15,6 +15,19 @@ services:
       timeout: 5s
       retries: 5
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@local.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "${PGADMIN_HOST_PORT:-5050}:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
   backend:
     build:
       context: ./backend
@@ -26,6 +39,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://kb:kb@db:5432/kb
       CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      LLM_MODEL: ${LLM_MODEL:-gemini-3.5-flash-lite}
+    volumes:
+      - ./backend/app:/app/app:ro
     depends_on:
       db:
         condition: service_healthy

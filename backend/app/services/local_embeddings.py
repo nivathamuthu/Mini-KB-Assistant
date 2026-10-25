@@ -7,15 +7,21 @@ from app.config import Settings
 from app.errors import ServiceUnavailableError
 
 
-@lru_cache(maxsize=1)
-def _load_model(model_name: str):
+def _ensure_sentence_transformers() -> None:
     try:
-        from sentence_transformers import SentenceTransformer
+        from sentence_transformers import SentenceTransformer  # noqa: F401
     except ImportError as exc:
         raise ServiceUnavailableError(
             "Local embeddings require sentence-transformers. "
             'Install with: pip install -e ".[local]"'
         ) from exc
+
+
+@lru_cache(maxsize=1)
+def _load_model(model_name: str):
+    _ensure_sentence_transformers()
+    from sentence_transformers import SentenceTransformer
+
     return SentenceTransformer(model_name)
 
 
@@ -32,6 +38,7 @@ class LocalEmbeddingProvider:
         if not settings.embed_model or not settings.embed_model.strip():
             raise ServiceUnavailableError("EMBED_MODEL is not configured.")
         self._model_name = settings.embed_model.strip()
+        _ensure_sentence_transformers()
 
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         if not texts:

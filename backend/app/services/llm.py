@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Protocol
 
 import httpx
@@ -9,6 +10,8 @@ from app.errors import ServiceUnavailableError, UpstreamError, UpstreamTimeoutEr
 from app.services.embeddings import _backoff_sleep
 from app.services.gemini_client import build_gemini_client, gemini_params
 from app.services.retrieval import RetrievedChunk
+
+logger = logging.getLogger(__name__)
 
 
 class LLMProvider(Protocol):
@@ -172,6 +175,18 @@ class GeminiLLMProvider:
                 await _backoff_sleep(attempt)
                 continue
             if resp.status_code >= 400:
+                logger.warning(
+                    "Gemini generateContent failed status=%s model=%s body=%s",
+                    resp.status_code,
+                    self._model,
+                    resp.text[:500],
+                )
+                if resp.status_code == 404:
+                    raise UpstreamError(
+                        "Gemini model not found or retired. Set LLM_MODEL to a current "
+                        "model (e.g. gemini-3.5-flash-lite).",
+                        status_code=502,
+                    )
                 raise UpstreamError("Gemini rejected the generation request.", status_code=502)
 
             data = resp.json()

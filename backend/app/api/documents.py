@@ -14,8 +14,8 @@ from app.schemas import (
     DocumentListItem,
     DocumentListResponse,
 )
-from app.services.chunking import split_text
 from app.services.embeddings import EmbeddingProvider
+from app.services.indexing import chunk_texts_for_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -27,9 +27,7 @@ async def create_document(
     settings: Settings = Depends(get_settings),
     embedding_provider: EmbeddingProvider = Depends(get_embedding_provider),
 ) -> DocumentCreateResponse:
-    pieces = split_text(body.content, settings)
-    if not pieces:
-        pieces = [body.content.strip()]
+    pieces = chunk_texts_for_document(body.title, body.content, settings)
 
     doc = Document(title=body.title, content=body.content)
     session.add(doc)
@@ -65,3 +63,35 @@ async def list_documents(
         DocumentListItem(document_id=d.id, title=d.title, created_at=d.created_at) for d in docs
     ]
     return DocumentListResponse(items=items, total=total, limit=limit, offset=offset)
+
+
+@router.post("/reindex", status_code=200)
+async def reindex_documents(
+    session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+    embedding_provider: EmbeddingProvider = Depends(get_embedding_provider),
+) -> dict[str, int]:
+    """Re-chunk and re-embed all documents (needed after changing EMBED_MODEL or provider)."""
+    result = await session.execute(select(Document).order_by(Document.created_at.asc()))
+    docs = result.scalars().all()
+    updated = 0
+    chunks_total = 0
+    for doc in docs:
+        await session.execute(
+            Chunk.__table__.delete().where(Chunk.document_id == doc.id)
+        )
+        pieces = chunk_texts_for_document(doc.title, doc.content, settings)
+        vectors = await embedding_provider.embed_texts(pieces)
+        for idx, (piece, vec) in enumerate(zip(pieces, vectors, strict=True)):
+            session.add(
+                Chunk(
+                    document_id=doc.id,
+                    chunk_index=idx,
+                    text=piece,
+                    embedding=vec,
+                )
+            )
+        updated += 1
+        chunks_total += len(pieces)
+    await session.flush()
+    return {"documents_reindexed": updated, "chunks_indexed": chunks_total}
