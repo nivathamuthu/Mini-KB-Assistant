@@ -9,93 +9,165 @@ A small RAG (retrieval-augmented generation) service for an internal support tea
 
 ## Requirements checklist
 
-| Area | Requirement | Status |
+Each row links to where the behaviour is implemented or tested.
+
+| Area | Requirement | Evidence |
 | --- | --- | --- |
-| API | `POST /documents`, `GET /documents`, `POST /ask` | ☑ |
-| Validation | Reject empty / oversized input with 4xx and useful messages | ☑ |
-| RAG | Chunking → embeddings → vector search → grounded generation → sources | ☑ |
-| Fallback | Mock embeddings + LLM, clearly labelled as demo-only | ☑ |
-| UI | Question box, Ask button, loading, answer, sources, error state | ☑ |
-| Rate limit | `POST /ask` ≈ 20 req/min per client, HTTP 429 + `Retry-After` | ☑ |
-| Errors | Timeouts, bounded retries, upstream 429 handling, no secret/stack leaks | ☑ |
-| Tests | Focused tests for important API behaviour | ☑ |
-| Docs | README, ARCHITECTURE.md, AI_USAGE.md | ☑ |
+| API | `POST /documents`, `GET /documents`, `POST /ask` | [`backend/app/api/documents.py`](backend/app/api/documents.py), [`backend/app/api/ask.py`](backend/app/api/ask.py); [`backend/tests/test_documents.py`](backend/tests/test_documents.py), [`backend/tests/test_ask.py`](backend/tests/test_ask.py) |
+| Validation | Reject empty / oversized input with 4xx | [`backend/app/schemas.py`](backend/app/schemas.py); [`backend/tests/test_documents.py`](backend/tests/test_documents.py) (422) |
+| RAG | Chunk → embed → search → generate → sources | [`backend/app/services/rag.py`](backend/app/services/rag.py), [`backend/app/services/retrieval.py`](backend/app/services/retrieval.py), [`backend/app/services/chunking.py`](backend/app/services/chunking.py) |
+| Fallback | Mock embeddings + LLM (demo-only) | [`backend/app/services/embeddings.py`](backend/app/services/embeddings.py), [`backend/app/services/llm.py`](backend/app/services/llm.py); `/health` [`mode`](backend/app/api/health.py) |
+| UI | Ask, loading, answer, sources, errors | [`frontend/src/App.tsx`](frontend/src/App.tsx), [`AskForm.tsx`](frontend/src/components/AskForm.tsx), [`SourceList.tsx`](frontend/src/components/SourceList.tsx), [`ErrorBanner.tsx`](frontend/src/components/ErrorBanner.tsx) |
+| Rate limit | `POST /ask` ≈ 20/min, 429 + `Retry-After` | [`backend/app/rate_limit.py`](backend/app/rate_limit.py); [`backend/tests/test_rate_limit.py`](backend/tests/test_rate_limit.py) |
+| Errors | Timeouts, retries, no secret leaks | [`backend/app/errors.py`](backend/app/errors.py), [`backend/app/main.py`](backend/app/main.py); upstream retry in [`backend/app/services/embeddings.py`](backend/app/services/embeddings.py), [`backend/app/services/llm.py`](backend/app/services/llm.py) |
+| Tests | Focused API behaviour | [`backend/tests/`](backend/tests/) |
+| Docs | README, architecture, AI disclosure | [README.md](./README.md), [ARCHITECTURE.md](./ARCHITECTURE.md), [AI_USAGE.md](./AI_USAGE.md) |
 
 ## Prerequisites
 
-- **Docker Desktop** (recommended: runs db + pgadmin + backend + frontend)
-- Or: Python 3.11+, Node 18+, Docker only for Postgres
+- **Docker** (recommended: db + pgadmin + backend + frontend)
+- Or: Python 3.11+, Node 18+, Docker **only** for Postgres (pgvector)
 
 ## Quick start (Docker — recommended)
 
-1. Copy env file and add your Gemini key (never commit `.env`):
+**No API key?** Use **mock mode** first so reviewers can run the full UI without Gemini:
 
-   ```powershell
-   copy .env.example .env
-   # Edit .env: GOOGLE_API_KEY=... and LLM_MODEL=gemini-3.5-flash-lite
-   ```
+```env
+LLM_PROVIDER=mock
+EMBEDDING_DIM=384
+```
 
-2. Start the stack:
+Copy that into `.env` (see step 1), start Docker, add a document, and ask a question — answers are demo/extractive, labelled via `/health` `mode: "mock"`.
 
-   ```powershell
-   .\docker-up.ps1
-   ```
+**Gemini models:** Defaults in `.env.example` (`gemini-3.5-flash-lite`, etc.) match this repo’s config and alias map in [`backend/app/config.py`](backend/app/config.py). Google changes model IDs over time; if `POST /ask` fails with “model not found”, pick a current model in [Google AI Studio](https://aistudio.google.com/) and set `LLM_MODEL`, or switch to **mock** above. Retired 2.x names are remapped automatically when listed in config.
 
-   Or:
+### 1. Environment file
 
-   ```powershell
-   docker compose up -d --build
-   ```
-
-3. Open:
-
-   | Service | URL |
-   | --- | --- |
-   | **UI** | http://localhost:5173 |
-   | **API** | http://localhost:8001 |
-   | **Swagger** | http://localhost:8001/docs |
-   | **Health** | http://localhost:8001/health |
-   | **pgAdmin** | http://localhost:5050 |
-
-   Default API host port is **8001** (avoids clash with other apps on 8000).
-
-4. In the UI: add a knowledge article → ask a question → review answer and sources.
-
-**After changing `.env`**, recreate the backend so it picks up new values:
+<details>
+<summary><strong>Windows (PowerShell)</strong></summary>
 
 ```powershell
+copy .env.example .env
+# Edit .env: GOOGLE_API_KEY=... or use LLM_PROVIDER=mock
+```
+
+</details>
+
+<details>
+<summary><strong>macOS / Linux (bash)</strong></summary>
+
+```bash
+cp .env.example .env
+# Edit .env: GOOGLE_API_KEY=... or use LLM_PROVIDER=mock
+```
+
+</details>
+
+### 2. Start the stack
+
+<details>
+<summary><strong>Windows (PowerShell)</strong></summary>
+
+```powershell
+.\docker-up.ps1
+```
+
+Or:
+
+```powershell
+docker compose up -d --build
+```
+
+</details>
+
+<details>
+<summary><strong>macOS / Linux (bash)</strong></summary>
+
+```bash
+docker compose up -d --build
+```
+
+(`docker-up.ps1` is a Windows helper only; same as `docker compose up -d --build`.)
+
+</details>
+
+### 3. Open
+
+| Service | URL |
+| --- | --- |
+| **UI** | http://localhost:5173 |
+| **API** | http://localhost:8001 |
+| **Swagger** | http://localhost:8001/docs |
+| **Health** | http://localhost:8001/health |
+| **pgAdmin** | http://localhost:5050 |
+
+Default API host port is **8001** (avoids clash with other apps on 8000).
+
+### 4. Try it
+
+Add a knowledge article in the UI → ask a question → review answer and sources.
+
+**After changing `.env`**, recreate the backend:
+
+<details>
+<summary><strong>Windows / macOS / Linux</strong></summary>
+
+```bash
 docker compose up -d --force-recreate backend
 ```
 
-Stop everything: `docker compose down`  
-Remove DB data: `docker compose down -v` (then re-add documents)
+</details>
+
+Stop: `docker compose down`  
+Reset DB: `docker compose down -v` (then re-add documents)
 
 ## Local development (Python + Node on host)
 
-```powershell
-# 1. Database only (Postgres on host port 5433 by default)
-docker compose up -d db
+<details>
+<summary><strong>Windows (PowerShell)</strong></summary>
 
-# 2. Backend — use DATABASE_URL with port 5433 when talking to Docker db from the host
+```powershell
+docker compose up -d db
 cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -e ".[dev,local]"
 copy ..\.env.example ..\.env
 uvicorn app.main:app --reload --port 8000
-
-# 3. Frontend (new terminal)
+# New terminal:
 cd frontend
 npm install
 npm run dev
 ```
 
+</details>
+
+<details>
+<summary><strong>macOS / Linux (bash)</strong></summary>
+
+```bash
+docker compose up -d db
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev,local]"
+cp ../.env.example ../.env
+uvicorn app.main:app --reload --port 8000
+# New terminal:
+cd frontend
+npm install
+npm run dev
+```
+
+</details>
+
 - API: http://localhost:8000  
-- UI: http://localhost:5173 (set `VITE_API_URL=http://localhost:8000` if needed)
+- UI: http://localhost:5173 (set `VITE_API_URL=http://localhost:8000` if needed)  
+- Host → Docker Postgres: `DATABASE_URL=...@localhost:5433/kb` (see `.env.example`)
 
 ## Configuration
 
-Copy `.env.example` → `.env` at the repo root. **Never commit `.env`** (it is in `.gitignore`).
+Copy `.env.example` → `.env` at the repo root. **Never commit `.env`**.
 
 ### Recommended setup (Gemini + local BGE)
 
@@ -113,13 +185,19 @@ DB_HOST_PORT=5433
 | --- | --- |
 | `LLM_PROVIDER` | `google` (Gemini chat), `openai`, or `mock` |
 | `GOOGLE_API_KEY` / `GEMINI_API_KEY` | Gemini API key for **answers** on `POST /ask` |
-| `LLM_MODEL` | Chat model, e.g. `gemini-3.5-flash-lite` or `gemini-3.8-flash` |
+| `LLM_MODEL` | Chat model ID for Gemini (verify in AI Studio if asks fail) |
 | `EMBED_MODEL` | Local Hugging Face model for **search**; Docker image includes BGE |
 | `EMBEDDING_DIM` | `384` (BGE-small), `768` (Gemini API embeddings), `1536` (OpenAI) |
-| `DB_HOST_PORT` | Host port for Postgres (default **5433**; avoids Windows PostgreSQL on 5432) |
-| `TOP_K` / `MIN_RELEVANCE_SCORE` | Retrieval tuning (default 4 / 0.15) |
+| `DB_HOST_PORT` | Host port for Postgres (default **5433**) |
+| `TOP_K` / `MIN_RELEVANCE_SCORE` | Retrieval tuning (default **4** / **0.15**) |
+| `RATE_LIMIT_PER_MINUTE` | Max `POST /ask` requests per client per minute (default **20**) |
+| `UPSTREAM_TIMEOUT_SECONDS` | Timeout for OpenAI/Gemini HTTP calls (default **20**) |
+| `UPSTREAM_MAX_RETRIES` | Retries on timeout/5xx with backoff (default **2**) |
+| `CHUNK_SIZE` / `CHUNK_OVERLAP` | Ingest splitting (default **800** / **120**) |
+| `MAX_DOC_CHARS` / `MAX_TITLE_CHARS` / `MAX_QUESTION_CHARS` | Input caps (default **200000** / **200** / **1000**) |
+| `CORS_ORIGINS` | Allowed browser origins for the UI |
 
-Legacy: `PROVIDER=mock|openai|gemini` still works. Retired Gemini 2.x model IDs are auto-mapped to 3.x in config.
+Legacy: `PROVIDER=mock|openai|gemini` still works. Retired Gemini 2.x model IDs are auto-mapped in [`backend/app/config.py`](backend/app/config.py).
 
 ### Demo without API keys
 
@@ -143,29 +221,45 @@ Interactive docs: **Swagger** at `/docs`.
 
 ### `GET /documents` — `limit` and `offset`
 
-Pagination query parameters (newest first):
-
 | Param | Default | Meaning |
 | --- | --- | --- |
-| `limit` | `20` | Max rows returned (1–100) |
-| `offset` | `0` | How many rows to skip |
-
-Example: `GET /documents?limit=10&offset=10` is the second page of 10. Response includes `items`, `total`, `limit`, and `offset`. List items expose `document_id`, `title`, and `created_at` (not full content).
+| `limit` | `20` | Max rows (1–100) |
+| `offset` | `0` | Rows to skip (newest first) |
 
 ### `GET /health` — `status` and `mode`
 
 - **`status: "ok"`** — API is running (does not call Gemini).
-- **`mode`** — reflects **configuration**, not a live API test:
-  - **`google`** — `LLM_PROVIDER=google` (Gemini for chat); embeddings may still be local if `EMBED_MODEL` is set.
-  - **`mock`**, **`openai`**, **`gemini`**, **`local`** — other provider combinations.
+- **`mode`** — configuration only: `google`, `mock`, `openai`, `gemini`, `local`, etc.
 
 ### `POST /documents/reindex`
 
-Rebuilds the search index for every row in **`documents`**: deletes old **`chunks`**, re-splits text, re-embeds with the **current** embedding settings, inserts new vectors. Does **not** change article titles or content.
+Rebuilds **`chunks`** for all **`documents`** after embedding or chunk setting changes. Restart backend after `.env` changes, then call once. No body.
 
-Call after changing `EMBED_MODEL`, embedding provider, or chunk settings. Restart the backend after `.env` changes, then reindex once. No request body.
+### curl examples (Docker API on port 8001)
 
-### Examples (Docker API on port 8001)
+<details>
+<summary><strong>macOS / Linux (bash)</strong></summary>
+
+```bash
+curl -X POST http://localhost:8001/documents \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Refund Policy","content":"Customers may request a refund within 30 days."}'
+
+curl 'http://localhost:8001/documents?limit=10&offset=0'
+
+curl -X POST http://localhost:8001/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"Explain the Refund Policy?"}'
+
+curl -X POST http://localhost:8001/documents/reindex
+
+curl http://localhost:8001/health
+```
+
+</details>
+
+<details>
+<summary><strong>Windows (PowerShell)</strong></summary>
 
 ```powershell
 curl -X POST http://localhost:8001/documents -H "Content-Type: application/json" -d "{\"title\":\"Refund Policy\",\"content\":\"Customers may request a refund within 30 days.\"}"
@@ -179,64 +273,84 @@ curl -X POST http://localhost:8001/documents/reindex
 curl http://localhost:8001/health
 ```
 
+</details>
+
 ## Data storage (PostgreSQL tables)
 
-Knowledge lives in **PostgreSQL** (Docker service `db`, database **`kb`**), not in files or the repo. **`POST /documents`** and the UI write rows the backend reads for search and ask.
+Knowledge lives in **PostgreSQL** (Docker service `db`, database **`kb`**).
 
 | Table | What it holds |
 | --- | --- |
-| **`documents`** | One row per article: `id`, `title`, `content`, `created_at` |
-| **`chunks`** | Split text + **pgvector** embedding: `document_id`, `chunk_index`, `text`, `embedding` |
-| **`questions`** | Ask history: `question`, `answer`, `source_chunk_ids`, **`latency_ms`**, `created_at` |
+| **`documents`** | `id`, `title`, `content`, `created_at` |
+| **`chunks`** | `document_id`, `chunk_index`, `text`, `embedding` (pgvector) |
+| **`questions`** | Ask history: `question`, `answer`, `source_chunk_ids`, **`latency_ms`** (ms), `created_at` |
 
-**`latency_ms`** on **`questions`** is end-to-end server time for that **`POST /ask`** in **milliseconds** (e.g. `9` = 9 ms, `1200` ≈ 1.2 s), including embed, retrieval, and LLM when used.
-
-Tables are created when the **backend** starts. Vector search uses an HNSW index on `chunks.embedding`.
+Tables are created when the **backend** starts.
 
 ### View tables in pgAdmin (included in Docker)
 
-1. Start the stack: `.\docker-up.ps1` or `docker compose up -d --build`.
-2. Open **http://localhost:5050** and sign in:
-   - Email: `admin@local.dev`
-   - Password: `admin` (override with `PGADMIN_DEFAULT_*` in `.env`)
-3. **Register → Server…** (browser pgAdmin **inside** Docker):
-   - **General → Name:** `Mini KB`
-   - **Connection → Host:** `db` (Docker network name — **not** `localhost`)
-   - **Port:** `5432` (inside the container)
+1. Start the stack (`docker compose up -d --build` or `.\docker-up.ps1` on Windows).
+2. Open **http://localhost:5050** and sign in with **`admin@local.dev`** / **`admin`**.
+   - **Local development only** — default pgAdmin credentials are not for production. Override with `PGADMIN_DEFAULT_*` in `.env` or do not expose port 5050 publicly.
+3. **Register → Server…** (browser pgAdmin in Docker):
+   - **Host:** `db` (not `localhost`)
+   - **Port:** `5432` (inside the Docker network)
    - **Database / user / password:** `kb` / `kb` / `kb`
-4. Expand **Servers → Mini KB → Databases → kb → Schemas → public → Tables** (`documents`, `chunks`, `questions`).
+4. **Schemas → public → Tables** → `documents`, `chunks`, `questions`.
 
-### pgAdmin desktop (installed on Windows)
+### pgAdmin desktop (on your machine)
 
-Use **Host** `localhost` (or `127.0.0.1`) and **Port** **`5433`** — Docker maps Postgres to **5433** by default so it does not clash with a local PostgreSQL on **5432**. Same user/password/database: `kb` / `kb` / `kb`.
+**Host** `localhost`, **port** **`5433`** (Docker host mapping), user/password/database `kb`.
 
-### CLI (optional)
+### CLI
 
-```powershell
-docker compose exec -it db psql -U kb -d kb -c "\dt public.*"
+```bash
+docker compose exec -it db psql -U kb -d kb -c '\dt public.*'
 ```
 
 ## Troubleshooting
 
 | Problem | What to do |
 | --- | --- |
-| pgAdmin: **failed to resolve host `db`** | You are using **desktop** pgAdmin on Windows — use host **`localhost`**, port **`5433`**, not `db`. Use host **`db`** only in browser pgAdmin at localhost:5050. |
-| pgAdmin: **password authentication failed for user kb** on port 5432 | You are hitting **Windows PostgreSQL**, not Docker — connect on port **`5433`**. |
-| “Couldn’t find in knowledge base” | Run `POST /documents/reindex` after switching embedding model; re-add docs if DB was reset |
-| “Gemini model not found or retired” | Set `LLM_MODEL=gemini-3.5-flash-lite`, then `docker compose up -d --force-recreate backend` |
-| UI “service unavailable” on Ask | Check `docker compose logs backend`; ensure BGE is in Docker image or use reindex |
-| CORS errors | Add your UI origin to `CORS_ORIGINS` |
-| Rate limit 429 | Wait for `Retry-After` or raise `RATE_LIMIT_PER_MINUTE` locally |
+| pgAdmin: **failed to resolve host `db`** | Desktop pgAdmin: use **`localhost:5433`**. Browser pgAdmin (5050): use host **`db`**. |
+| pgAdmin: **password failed for user kb** on 5432 | Wrong server — use Docker on port **`5433`**. |
+| “Couldn’t find in knowledge base” | `POST /documents/reindex`; re-add docs if DB was reset |
+| “Gemini model not found or retired” | Set a current model from AI Studio in `LLM_MODEL`, or use **`LLM_PROVIDER=mock`**; recreate backend |
+| UI “service unavailable” on Ask | `docker compose logs backend`; check BGE / reindex |
+| CORS errors | Add UI origin to `CORS_ORIGINS` |
+| Rate limit 429 | Wait for `Retry-After` or raise **`RATE_LIMIT_PER_MINUTE`** in `.env` |
 
 ## Tests
 
+**PostgreSQL with pgvector is required.** There is no SQLite or in-memory DB fallback — tests hit a real database via asyncpg (see [`backend/tests/conftest.py`](backend/tests/conftest.py)).
+
+<details>
+<summary><strong>Windows (PowerShell)</strong></summary>
+
 ```powershell
+docker compose up -d db
 cd backend
 pip install -e ".[dev]"
 pytest -q
 ```
 
-Requires Postgres running (`docker compose up -d db`). For host tests, point `DATABASE_URL` at `localhost:5433` if using Docker db.
+</details>
+
+<details>
+<summary><strong>macOS / Linux (bash)</strong></summary>
+
+```bash
+docker compose up -d db
+cd backend
+pip install -e ".[dev]"
+pytest -q
+```
+
+</details>
+
+Default test URL: `postgresql+asyncpg://kb:kb@localhost:5433/kb` (Docker `db` with default `DB_HOST_PORT`). Override with `DATABASE_URL` if your port differs. Tests use **`PROVIDER=mock`** — no live Gemini/OpenAI calls.
+
+If Docker is unavailable, you cannot run the integration tests as written; run the stack in Docker or install Postgres locally with the **pgvector** extension and match `DATABASE_URL`.
 
 ## Project layout
 
@@ -251,7 +365,7 @@ AI_USAGE.md           AI disclosure
 
 ## Documentation
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — data model, RAG flow, 10K / 100K / 1M scale
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — data model, RAG flow, scale notes
 - [AI_USAGE.md](./AI_USAGE.md) — AI tools disclosure
 
 ## License
