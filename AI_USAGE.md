@@ -1,22 +1,31 @@
 # AI usage disclosure
 
-## Tools used
+I used AI coding tools during this challenge, as the brief encourages. I made the design decisions and reviewed, tested, and corrected the output myself.
 
-- **Cursor Agent (Claude)** — scaffolding the repo from `README_Assistant.md` and the coding challenge docx, implementing backend/frontend/tests, and drafting architecture notes.
+## Tools and what I used them for
 
-## Where AI influenced the design
+- **Cursor Agent (Claude):** first drafts of the repo scaffold, backend routes and services, React components, and tests.
+- **Claude (chat):** reviewing my README and ARCHITECTURE.md against the brief and drafting the expanded scalability section, which I then edited.
 
-- Repository layout and phase ordering followed the provided README build plan.
-- Provider abstraction (mock, OpenAI, Google Gemini), optional local BGE embeddings (`EMBED_MODEL`), standard error JSON shape, and in-memory sliding-window rate limiter match the README’s suggested patterns.
-- Mock embeddings use a simple bag-of-words hashing scheme so local demos retrieve overlapping terms without calling external APIs.
-- Docker image installs CPU PyTorch + sentence-transformers and pre-downloads BGE-small for embedding/search when `EMBED_MODEL` is set.
+## Decisions I made
 
-## Reviewed / changed suggestion
+- Chose the stack: FastAPI, PostgreSQL + pgvector, Gemini for answers, local BGE for embeddings, React/Vite.
+- Chose to keep a mock mode so reviewers can run the app without API keys.
+- [Add other decisions: chunk size, relevance threshold, rate limit approach, etc.]
 
-**Suggestion (AI):** Use fully random hash-based embedding vectors for mock mode.
+## What I reviewed, tested, and changed
 
-**Decision:** **Changed.** Pure random hashes per full string do not retrieve related chunks when the question shares words with a document, which breaks the demo ask flow. Replaced with normalized bag-of-words bucket vectors so shared tokens increase cosine similarity, while still keeping mock mode clearly non-production.
+- Ran the full flow (add article, ask, view sources) in mock and Gemini mode.
+- Ran the tests against a real Postgres + pgvector database.
+- Checked that no secrets are in the repo or Git history and that errors don't leak internals.
+- [Add real fixes or edits you made to AI-generated code.]
 
----
+## Example of a suggestion I changed
 
-<!-- TODO (candidate): Add any additional tools you used personally and one honest example of a suggestion you rejected. -->
+**AI suggestion:** random hash-based vectors for mock embeddings.
+**My decision:** changed it. Random hashes don't retrieve related chunks, which breaks the demo. I replaced them with normalized bag-of-words vectors so shared words raise cosine similarity. Mock mode is still labelled demo-only.
+
+## Limits
+
+- Gemini model IDs change over time, so I made `LLM_MODEL` configurable and kept mock mode as a fallback.
+- [Add anything else you did not fully verify.]
