@@ -16,8 +16,8 @@ Each row links to where the behaviour is implemented or tested.
 | API | `POST /documents`, `GET /documents`, `POST /ask` | [`backend/app/api/documents.py`](backend/app/api/documents.py), [`backend/app/api/ask.py`](backend/app/api/ask.py); [`backend/tests/test_documents.py`](backend/tests/test_documents.py), [`backend/tests/test_ask.py`](backend/tests/test_ask.py) |
 | Validation | Reject empty / oversized input with 4xx | [`backend/app/schemas.py`](backend/app/schemas.py); [`backend/tests/test_documents.py`](backend/tests/test_documents.py) (422) |
 | RAG | Chunk → embed → search → generate → sources | [`backend/app/services/rag.py`](backend/app/services/rag.py), [`backend/app/services/retrieval.py`](backend/app/services/retrieval.py), [`backend/app/services/chunking.py`](backend/app/services/chunking.py) |
-| Fallback | Mock embeddings + LLM (demo-only) | [`backend/app/services/embeddings.py`](backend/app/services/embeddings.py), [`backend/app/services/llm.py`](backend/app/services/llm.py); `/health` [`mode`](backend/app/api/health.py) |
-| UI | Ask, loading, answer, sources, errors | [`frontend/src/App.tsx`](frontend/src/App.tsx), [`AskForm.tsx`](frontend/src/components/AskForm.tsx), [`SourceList.tsx`](frontend/src/components/SourceList.tsx), [`ErrorBanner.tsx`](frontend/src/components/ErrorBanner.tsx) |
+| Fallback | Mock embeddings + LLM (demo-only) | [`backend/app/services/embeddings.py`](backend/app/services/embeddings.py), [`backend/app/services/llm.py`](backend/app/services/llm.py); [`backend/app/api/health.py`](backend/app/api/health.py) |
+| UI | Ask, loading, answer, sources, errors | [`frontend/src/App.tsx`](frontend/src/App.tsx), [`frontend/src/components/AskForm.tsx`](frontend/src/components/AskForm.tsx), [`frontend/src/components/SourceList.tsx`](frontend/src/components/SourceList.tsx), [`frontend/src/components/ErrorBanner.tsx`](frontend/src/components/ErrorBanner.tsx) |
 | Rate limit | `POST /ask` ≈ 20/min, 429 + `Retry-After` | [`backend/app/rate_limit.py`](backend/app/rate_limit.py); [`backend/tests/test_rate_limit.py`](backend/tests/test_rate_limit.py) |
 | Errors | Timeouts, retries, no secret leaks | [`backend/app/errors.py`](backend/app/errors.py), [`backend/app/main.py`](backend/app/main.py); upstream retry in [`backend/app/services/embeddings.py`](backend/app/services/embeddings.py), [`backend/app/services/llm.py`](backend/app/services/llm.py) |
 | Tests | Focused API behaviour | [`backend/tests/`](backend/tests/) |
@@ -34,10 +34,13 @@ Each row links to where the behaviour is implemented or tested.
 
 ```env
 LLM_PROVIDER=mock
+EMBED_MODEL=
 EMBEDDING_DIM=384
 ```
 
-Copy that into `.env` (see step 1), start Docker, add a document, and ask a question — answers are demo/extractive, labelled via `/health` `mode: "mock"`.
+If you copy from `.env.example`, **clear or remove `EMBED_MODEL`**. When `EMBED_MODEL` is set, local BGE is used for search even in mock LLM mode (fine in Docker where BGE is pre-installed, but heavier than hash-based mock embeddings).
+
+Copy the snippet into `.env` (see step 1), start Docker, add a document, and ask a question — answers are demo/extractive, labelled via `/health` `mode: "mock"`.
 
 **Gemini models:** Defaults in `.env.example` (`gemini-3.5-flash-lite`, etc.) match this repo’s config and alias map in [`backend/app/config.py`](backend/app/config.py). Google changes model IDs over time; if `POST /ask` fails with “model not found”, pick a current model in [Google AI Studio](https://aistudio.google.com/) and set `LLM_MODEL`, or switch to **mock** above. Retired 2.x names are remapped automatically when listed in config.
 
@@ -109,14 +112,9 @@ Add a knowledge article in the UI → ask a question → review answer and sourc
 
 **After changing `.env`**, recreate the backend:
 
-<details>
-<summary><strong>Windows / macOS / Linux</strong></summary>
-
 ```bash
 docker compose up -d --force-recreate backend
 ```
-
-</details>
 
 Stop: `docker compose down`  
 Reset DB: `docker compose down -v` (then re-add documents)
@@ -203,7 +201,7 @@ Legacy: `PROVIDER=mock|openai|gemini` still works. Retired Gemini 2.x model IDs 
 
 ```env
 LLM_PROVIDER=mock
-# Leave EMBED_MODEL unset for hash-based demo embeddings
+EMBED_MODEL=
 EMBEDDING_DIM=384
 ```
 
@@ -213,7 +211,7 @@ EMBEDDING_DIM=384
 | --- | --- | --- |
 | `POST` | `/documents` | Add article (chunk + embed + index) |
 | `GET` | `/documents` | List articles (paginated; see below) |
-| `POST` | `/documents/reindex` | Re-chunk and re-embed **all** documents |
+| `POST` | `/documents/reindex` | Re-chunk and re-embed **all** documents (unauthenticated in this demo; admin-only in production) |
 | `POST` | `/ask` | RAG question → answer + sources |
 | `GET` | `/health` | Liveness + configured `mode` (see below) |
 
@@ -233,7 +231,7 @@ Interactive docs: **Swagger** at `/docs`.
 
 ### `POST /documents/reindex`
 
-Rebuilds **`chunks`** for all **`documents`** after embedding or chunk setting changes. Restart backend after `.env` changes, then call once. No body.
+Rebuilds **`chunks`** for all **`documents`** after embedding or chunk setting changes. Restart backend after `.env` changes, then call once. No body. **No auth** in this submission — any caller can trigger a full re-embed; production would restrict this to admins.
 
 ### curl examples (Docker API on port 8001)
 
@@ -348,7 +346,9 @@ pytest -q
 
 </details>
 
-Default test URL: `postgresql+asyncpg://kb:kb@localhost:5433/kb` (Docker `db` with default `DB_HOST_PORT`). Override with `DATABASE_URL` if your port differs. Tests use **`PROVIDER=mock`** — no live Gemini/OpenAI calls.
+Default test URL: `postgresql+asyncpg://kb:kb@localhost:5433/kb` (Docker `db` with default `DB_HOST_PORT`). Override with `DATABASE_URL` if your port differs.
+
+[`backend/tests/conftest.py`](backend/tests/conftest.py) sets legacy **`PROVIDER=mock`** via `os.environ.setdefault` before the app loads — the same effect as **`LLM_PROVIDER=mock`** when `LLM_PROVIDER` is not set. No live Gemini/OpenAI calls in tests. If repo-root **`.env`** sets `LLM_PROVIDER` or `EMBED_MODEL`, pytest may still read those; use the mock snippet above or a test-only env for fully isolated runs.
 
 If Docker is unavailable, you cannot run the integration tests as written; run the stack in Docker or install Postgres locally with the **pgvector** extension and match `DATABASE_URL`.
 
@@ -365,7 +365,7 @@ AI_USAGE.md           AI disclosure
 
 ## Documentation
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — data model, RAG flow, scale notes
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — data model, RAG flow, current vs future scalability (10K / 100K / 1M)
 - [AI_USAGE.md](./AI_USAGE.md) — AI tools disclosure
 
 ## License
